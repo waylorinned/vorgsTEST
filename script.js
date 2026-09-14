@@ -4,7 +4,7 @@ let joyX = 0, joyY = 0, isJoyActive = false;
 
 // Координаты и физика
 let loc_x = 0;
-let loc_y = -800; // Спавнимся высоко в небе, чтобы упасть на ландшафт
+let loc_y = -800; // Спавнимся в небе над ландшафтом
 let vel_x = 0;
 let vel_y = 0;
 let is_grounded = false;
@@ -15,63 +15,136 @@ const PLAYER_W = 20;
 const PLAYER_H = 30;   
 
 let local_blocks = {};
-let current_block = 0; // По умолчанию кирка
-
 let game_time = 0; 
 let is_hud_edit = false;
+
+// ИНВЕНТАРЬ И ХОТБАР
+// Активный слот хотбара (от 0 до 4)
+let active_slot = 0; 
+// ID блоков в хотбаре (Кирка, Земля, Камень, Дерево, Обсидиан)
+let hotbar_items = [0, 1, 2, 8, 3]; 
+
+// БАЗА ДАННЫХ ВСЕХ 40 БЛОКОВ
+const BLOCK_DB = {
+    0: { name: "Кирка", icon: "⛏️", color: "transparent" },
+    1: { name: "Земля", icon: "🟫", color: "#654321" },
+    2: { name: "Камень", icon: "🪨", color: "#808080" },
+    3: { name: "Обсидиан", icon: "⬛", color: "#1e0036" },
+    4: { name: "Лазурит", icon: "🔷", color: "#808080", ore: "#1E90FF" },
+    5: { name: "Алмаз", icon: "💎", color: "#808080", ore: "#00FFFF" },
+    6: { name: "Изумруд", icon: "🟩", color: "#808080", ore: "#32CD32" },
+    7: { name: "Железо", icon: "🪙", color: "#808080", ore: "#FFDAB9" },
+    8: { name: "Дерево", icon: "🪵", color: "#5c3a21" },
+    9: { name: "Доски", icon: "🟫", color: "#b58253" },
+    10: { name: "Стекло", icon: "🧊", color: "rgba(200,255,255,0.4)" },
+    11: { name: "Песок", icon: "🟨", color: "#edd27e" },
+    12: { name: "Кирпич", icon: "🧱", color: "#a13c32" },
+    13: { name: "Золото", icon: "🟡", color: "#808080", ore: "#FFD700" },
+    14: { name: "Уголь", icon: "🖤", color: "#808080", ore: "#222" },
+    15: { name: "Редст. Руда", icon: "🔴", color: "#808080", ore: "#FF0000" },
+    16: { name: "ТНТ", icon: "🧨", color: "#d13838" },
+    17: { name: "Верстак", icon: "🛠️", color: "#8c603a" },
+    18: { name: "Печь", icon: "🪨", color: "#555555" },
+    19: { name: "Сундук", icon: "📦", color: "#a87132" },
+    20: { name: "Чары", icon: "🔮", color: "#222" },
+    21: { name: "Воронка", icon: "🔽", color: "#555" },
+    22: { name: "Варочная", icon: "🧪", color: "#999" },
+    23: { name: "Редстоун", icon: "🩸", color: "rgba(255,0,0,0.5)" }, // Пыль
+    24: { name: "Факел", icon: "🏮", color: "#fff" },
+    25: { name: "Повторитель", icon: "🎚️", color: "#ddd" },
+    26: { name: "Компаратор", icon: "⚖️", color: "#ddd" },
+    27: { name: "Поршень", icon: "⚙️", color: "#9e8666" },
+    28: { name: "Липкий пор.", icon: "🍯", color: "#77a641" },
+    29: { name: "Слизь", icon: "🟩", color: "rgba(100,255,100,0.6)" },
+    30: { name: "Мёд", icon: "🟧", color: "rgba(255,170,0,0.6)" },
+    31: { name: "Плита", icon: "➖", color: "#777" },
+    32: { name: "Рычаг", icon: "🕹️", color: "#aaa" },
+    33: { name: "Кнопка", icon: "🔘", color: "#888" },
+    34: { name: "Раздатчик", icon: "🏹", color: "#666" },
+    35: { name: "Наблюдатель", icon: "👁️", color: "#555" },
+    36: { name: "Лампа", icon: "💡", color: "#804000" },
+    37: { name: "Решетка", icon: "⛓️", color: "transparent" },
+    38: { name: "Люк", icon: "🚪", color: "#7a5531" },
+    39: { name: "Бедрок", icon: "🌑", color: "#111" }
+};
 
 window.addEventListener('DOMContentLoaded', () => {
     init_map();
     generate_landscape();
     load_hud_positions();
+    update_hotbar_ui();
     requestAnimationFrame(draw_map);
 });
 
 // ГЕНЕРАЦИЯ ЛАНДШАФТА, ПЕЩЕР И РУД
 function generate_landscape() {
     for(let x = -200; x <= 200; x++) {
-        // Генерация холмов (волнистый рельеф)
         let surfaceY = Math.floor(Math.sin(x * 0.1) * 4 + Math.cos(x * 0.05) * 6);
+        for(let y = surfaceY; y <= surfaceY + 2; y++) local_blocks[x + '_' + y] = 1; // Земля
         
-        // Слой травы и земли (3 блока)
-        for(let y = surfaceY; y <= surfaceY + 2; y++) {
-            local_blocks[x + '_' + y] = 1; // 1 = Земля
-        }
-        
-        // Слой камня, пещер и руд (идет глубоко вниз)
-        for(let y = surfaceY + 3; y <= surfaceY + 50; y++) {
-            // Математика пещер (пустоты)
+        for(let y = surfaceY + 3; y <= surfaceY + 60; y++) {
             let caveNoise = Math.sin(x * 0.2) * Math.cos(y * 0.2) + Math.sin(x * 0.1);
-            if (caveNoise > 0.7) continue; // Это пустота (пещера)
+            if (caveNoise > 0.65) continue; // Пещера
 
-            let block = 2; // По умолчанию камень
-            
-            // Генерация руд
+            let block = 2; // Камень
             let r = Math.random();
-            if (y > surfaceY + 25) { // Глубоко (Алмазы, Лазурит, Изумруды)
-                if (r < 0.015) block = 5; // Алмазы
-                else if (r < 0.02) block = 6; // Изумруды
-                else if (r < 0.04) block = 4; // Лазурит
-                else if (r < 0.08) block = 7; // Железо
-            } else { // Ближе к поверхности (Уголь, Железо)
-                if (r < 0.05) block = 7; // Железо
+            if (y > surfaceY + 40) { // Глубоко (Алмазы, Лазурит, Редстоун)
+                if (r < 0.015) block = 5; else if (r < 0.02) block = 6; else if (r < 0.04) block = 4; else if (r < 0.05) block = 15; else if (r < 0.08) block = 13;
+            } else if (y > surfaceY + 15) { // Средне (Железо, Золото)
+                if (r < 0.04) block = 7; else if (r < 0.02) block = 13; else if (r < 0.05) block = 14;
+            } else { // Ближе к поверхности (Уголь)
+                if (r < 0.06) block = 14;
             }
-            
             local_blocks[x + '_' + y] = block;
         }
-        
-        // Бедрок / Обсидиан на самом дне
-        local_blocks[x + '_' + (surfaceY + 51)] = 3;
+        local_blocks[x + '_' + (surfaceY + 61)] = 39; // Бедрок
     }
 }
 
-window.select_slot = function(id) {
+// ЛОГИКА ИНВЕНТАРЯ И ХОТБАРА
+window.select_slot = function(index) {
     if(is_hud_edit) return; 
-    current_block = id;
-    document.querySelectorAll('.hotbar-slot').forEach(el => el.classList.remove('active'));
-    document.querySelector(`.hotbar-slot[data-block="${id}"]`).classList.add('active');
+    active_slot = index;
+    update_hotbar_ui();
 }
 
+function update_hotbar_ui() {
+    for(let i=0; i<5; i++) {
+        let slot = document.getElementById('hb-'+i);
+        let icon = document.getElementById('hi-'+i);
+        let label = document.getElementById('hl-'+i);
+        
+        if (i === active_slot) slot.classList.add('active');
+        else slot.classList.remove('active');
+        
+        let blockId = hotbar_items[i];
+        icon.innerText = BLOCK_DB[blockId].icon;
+        label.innerText = BLOCK_DB[blockId].name;
+    }
+}
+
+window.open_block_inventory = function() {
+    if(is_hud_edit) return;
+    let grid = document.getElementById('sandbox-inv-grid');
+    let html = '';
+    for(let key in BLOCK_DB) {
+        let b = BLOCK_DB[key];
+        html += `<div class="inv-item-2d" onclick="set_hotbar_item(${key})">
+                    ${b.icon}
+                    <div class="inv-item-name">${b.name}</div>
+                 </div>`;
+    }
+    grid.innerHTML = html;
+    document.getElementById('sandbox-inventory-modal').style.display = 'flex';
+}
+
+window.set_hotbar_item = function(blockId) {
+    hotbar_items[active_slot] = blockId;
+    update_hotbar_ui();
+    document.getElementById('sandbox-inventory-modal').style.display = 'none';
+}
+
+// ФИЗИКА И КЛИКИ
 function init_map() {
     canvas = document.getElementById('rtp-canvas');
     if (canvas) ctx = canvas.getContext('2d');
@@ -85,7 +158,6 @@ function init_map() {
         joyZone.addEventListener('touchmove', e => { if(is_hud_edit) return; e.preventDefault(); if(isJoyActive) handleJoy(e.touches[0]); }, {passive:false});
         joyZone.addEventListener('touchend', e => { if(is_hud_edit) return; e.preventDefault(); isJoyActive = false; joyX = 0; joyY = 0; if(joyKnob) joyKnob.style.transform = `translate(0px, 0px)`; }, {passive:false});
     }
-    
     function handleJoy(t) { 
         let dx = t.clientX - (jRect.left + 50); let dy = t.clientY - (jRect.top + 50); 
         let dist = Math.sqrt(dx*dx + dy*dy); let maxD = 35; 
@@ -125,17 +197,22 @@ function process_build_click(tx, ty) {
     let worldX = tx - cx + loc_x; let worldY = ty - cy + loc_y - (PLAYER_H / 2);
     let gridX = Math.floor(worldX / BLOCK_SIZE); let gridY = Math.floor(worldY / BLOCK_SIZE);
     
-    if(Math.hypot(worldX - loc_x, worldY - loc_y) > 200) return; // Можно строить немного дальше
+    if(Math.hypot(worldX - loc_x, worldY - loc_y) > 200) return; 
     let key = gridX + '_' + gridY;
     
+    let current_block = hotbar_items[active_slot];
+
     if (current_block === 0) {
-        delete local_blocks[key];
+        delete local_blocks[key]; // Ломаем
     } else {
         let pL = Math.floor((loc_x - PLAYER_W/2) / BLOCK_SIZE);
         let pR = Math.floor((loc_x + PLAYER_W/2 - 0.1) / BLOCK_SIZE);
         let pT = Math.floor((loc_y - PLAYER_H) / BLOCK_SIZE);
         let pB = Math.floor((loc_y - 0.1) / BLOCK_SIZE);
-        if (gridX >= pL && gridX <= pR && gridY >= pT && gridY <= pB) return; 
+        // Не ставим блоки (кроме декоративных типа пыли) в игрока
+        let isSolid = ![23, 24, 30, 31, 32, 33, 37].includes(current_block);
+        if (isSolid && gridX >= pL && gridX <= pR && gridY >= pT && gridY <= pB) return; 
+        
         local_blocks[key] = current_block;
     }
 }
@@ -148,7 +225,12 @@ function check_collision(nx, ny) {
 
     for (let bx = left; bx <= right; bx++) {
         for (let by = top; by <= bottom; by++) {
-            if (local_blocks[bx + '_' + by]) return true; 
+            let bId = local_blocks[bx + '_' + by];
+            if (bId) {
+                // Пыль, факела, кнопки - сквозные
+                let passThrough = [23, 24, 30, 31, 32, 33, 37].includes(bId);
+                if (!passThrough) return true;
+            }
         }
     }
     return false; 
@@ -208,45 +290,41 @@ function draw_map() {
 
     let blockDarken = is_day ? 0 : 40;
 
-    // Отрисовка блоков и руд
+    // Отрисовка блоков из базы
     for (let key in local_blocks) {
         let coords = key.split('_');
         let screenX = cx + (parseInt(coords[0]) * BLOCK_SIZE - loc_x);
         let screenY = cy + (parseInt(coords[1]) * BLOCK_SIZE - loc_y + (PLAYER_H/2));
 
         if (screenX > -BLOCK_SIZE && screenX < canvas.width && screenY > -BLOCK_SIZE && screenY < canvas.height) {
-            let type = local_blocks[key];
+            let bId = local_blocks[key];
+            let blockDef = BLOCK_DB[bId];
             
-            // Базовые цвета
-            if (type === 1) ctx.fillStyle = `rgb(${101-blockDarken}, ${67-blockDarken}, ${33-blockDarken})`; // Земля
-            else if (type === 8) ctx.fillStyle = `rgb(${139-blockDarken}, ${90-blockDarken}, ${43-blockDarken})`; // Дерево
-            else if (type === 3) ctx.fillStyle = '#1e0036'; // Обсидиан
-            else if (type === 9) ctx.fillStyle = '#111'; // Стол зачарований (база)
-            else ctx.fillStyle = `rgb(${128-blockDarken}, ${128-blockDarken}, ${128-blockDarken})`; // Камень и Руды (база)
+            // Базовый цвет
+            ctx.fillStyle = blockDef.color;
+            if (ctx.fillStyle !== 'rgba(0, 0, 0, 0)') {
+                ctx.fillRect(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE);
+            }
             
-            ctx.fillRect(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE);
-            
-            // Детали блоков
-            if (type === 1) { // Трава
+            // Декоративные элементы (Руды, Трава, Механизмы)
+            if (bId === 1) { // Трава
                 ctx.fillStyle = `rgb(${34-blockDarken/2}, ${139-blockDarken/2}, ${34-blockDarken/2})`;
                 ctx.fillRect(screenX, screenY, BLOCK_SIZE, 6);
-            } else if (type === 4) { // Лазурит
-                ctx.fillStyle = '#1E90FF'; ctx.fillRect(screenX+6, screenY+6, 6, 6); ctx.fillRect(screenX+18, screenY+18, 5, 5);
-            } else if (type === 5) { // Алмаз
-                ctx.fillStyle = '#00FFFF'; ctx.fillRect(screenX+4, screenY+8, 7, 7); ctx.fillRect(screenX+20, screenY+15, 6, 6);
-            } else if (type === 6) { // Изумруд
-                ctx.fillStyle = '#32CD32'; ctx.fillRect(screenX+8, screenY+4, 5, 8); ctx.fillRect(screenX+16, screenY+20, 8, 5);
-            } else if (type === 7) { // Железо
-                ctx.fillStyle = '#FFDAB9'; ctx.fillRect(screenX+5, screenY+5, 6, 6); ctx.fillRect(screenX+20, screenY+20, 6, 6);
-            } else if (type === 8) { // Дерево (текстура коры)
-                ctx.fillStyle = `rgb(${100-blockDarken}, ${50-blockDarken}, ${20-blockDarken})`;
-                ctx.fillRect(screenX+8, screenY, 2, BLOCK_SIZE); ctx.fillRect(screenX+22, screenY, 2, BLOCK_SIZE);
-            } else if (type === 9) { // Стол зачарований
-                ctx.fillStyle = '#8B0000'; ctx.fillRect(screenX, screenY, BLOCK_SIZE, 8); // Красная скатерть
-                ctx.fillStyle = '#FFD700'; ctx.fillRect(screenX+12, screenY-6, 8, 6); // Книга сверху
+            } else if (blockDef.ore) { // Вкрапления руды
+                ctx.fillStyle = blockDef.ore; 
+                ctx.fillRect(screenX+6, screenY+6, 5, 5); ctx.fillRect(screenX+20, screenY+16, 6, 6); ctx.fillRect(screenX+8, screenY+22, 4, 4);
+            } else if (bId === 20) { // Стол зачарований
+                ctx.fillStyle = '#FFD700'; ctx.fillRect(screenX+12, screenY-6, 8, 6); // Книга
+            } else if (bId === 23) { // Редстоун пыль
+                ctx.fillStyle = '#F00'; ctx.fillRect(screenX, screenY+28, BLOCK_SIZE, 4);
+            } else if (bId === 37) { // Решетка
+                ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(screenX+16, screenY); ctx.lineTo(screenX+16, screenY+32); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(screenX, screenY+16); ctx.lineTo(screenX+32, screenY+16); ctx.stroke();
             }
 
-            ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1;
+            // Рамка блока
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1;
             ctx.strokeRect(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE);
         }
     }
