@@ -3,32 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>vorgster kombat - 2D SANDBOX FINAL</title>
+  <title>vorgster kombat - 2D SANDBOX MECH</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
   <script src="script.js" defer></script>
   <style>
-    /* Стили для 2D песочницы */
-    .map-wrapper { position: relative; overflow: hidden; border: 2px solid #333; border-radius: 8px; height: 60vh; touch-action: none; }
+    .map-wrapper { position: relative; overflow: hidden; border: 2px solid #333; border-radius: 8px; height: 60vh; touch-action: none; background: #000; }
     
     .draggable-hud { position: absolute; z-index: 20; transition: border 0.2s, background 0.2s; }
     .hud-edit-mode .draggable-hud { border: 2px dashed #0f0 !important; background: rgba(0, 255, 0, 0.2) !important; cursor: move; }
     
-    .hotbar-slot {
-      width: 45px; height: 45px; background: rgba(0,0,0,0.7); border: 2px solid #555;
-      border-radius: 6px; display: flex; flex-direction: column; justify-content: center; align-items: center;
-      transition: 0.1s; position: relative;
-    }
-    .hotbar-slot.active { border-color: #0f0; background: rgba(0,255,0,0.3); transform: scale(1.1); z-index: 2; box-shadow: 0 0 10px #0f0; }
-    .hotbar-icon { font-size: 20px; line-height: 1; margin-top: -5px; }
-    .hotbar-label { font-size: 8px; color: #fff; font-weight: bold; position: absolute; bottom: 2px; text-shadow: 1px 1px 0 #000; }
+    .hotbar-container { display:flex; gap:4px; background: rgba(0,0,0,0.6); padding: 4px; border-radius: 8px; border: 1px solid #444; }
+    .hotbar-slot { width: 42px; height: 42px; background: rgba(0,0,0,0.7); border: 2px solid #555; border-radius: 6px; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
+    .hotbar-slot.active { border-color: #0f0; background: rgba(0,255,0,0.3); transform: scale(1.05); z-index: 2; box-shadow: 0 0 10px #0f0; }
+    .hotbar-icon { font-size: 20px; line-height: 1; margin-top: -5px; pointer-events: none; }
+    .hotbar-label { font-size: 8px; color: #fff; font-weight: bold; position: absolute; bottom: 2px; text-shadow: 1px 1px 0 #000; pointer-events: none; }
+    
+    .inv-grid-2d { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; max-height: 50vh; overflow-y: auto; padding: 5px; }
+    .inv-item-2d { background: #222; border: 1px solid #444; border-radius: 6px; padding: 8px 0; text-align: center; font-size: 24px; position: relative; }
+    .inv-item-2d:active { background: #444; }
+    .inv-item-name { font-size: 9px; color: #aaa; position: absolute; bottom: 2px; width: 100%; left: 0; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <div style="text-align:center; color:#0ff; font-weight:bold; padding:10px;">🛠️ SANDBOX: РЕДАКТОР 2D МИРА 🛠️</div>
+      <div style="text-align:center; color:#0ff; font-weight:bold; padding:10px;">⚙️ SANDBOX: МЕХАНИЗМЫ И РУДЫ ⚙️</div>
     </div>
 
     <div id="tab-anarchy" class="tab-content active">
@@ -42,48 +43,62 @@
         <div class="map-wrapper" id="map-wrapper">
           <canvas id="rtp-canvas"></canvas>
           
-          <!-- ДРАГГАБЛ 1: Координаты -->
+          <!-- ДРАГГАБЛ: Координаты -->
           <div id="hud-coords" class="draggable-hud" style="top: 10px; left: 10px;">
-            <div style="background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 5px; font-size: 12px; color: #fff;">
+            <div style="background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 5px; font-size: 12px; color: #fff; border: 1px solid #444;">
               X: <span id="map-x">0</span> Y: <span id="map-y">0</span> | <span id="time-display">☀️ День</span>
             </div>
           </div>
 
-          <!-- ДЖОЙСТИК (Не перетаскивается, он прибит слева внизу) -->
+          <!-- ДЖОЙСТИК -->
           <div class="joystick-zone" id="joystick-zone" style="z-index: 25;"><div class="joystick-knob" id="joystick-knob"></div></div>
           
-                   <!-- ДРАГГАБЛ 2: Хотбар строительства -->
-          <div id="hud-hotbar" class="draggable-hud" style="bottom: 15px; left: 10px; max-width: 70vw; overflow-x: auto; border-radius: 8px;">
-            <div style="display:flex; gap:6px; padding-bottom: 5px;">
-              <div class="hotbar-slot active" data-block="0" onclick="select_slot(0)"><div class="hotbar-icon">⛏️</div><div class="hotbar-label">Кирка</div></div>
-              <div class="hotbar-slot" data-block="1" onclick="select_slot(1)"><div class="hotbar-icon">🟫</div><div class="hotbar-label">Земля</div></div>
-              <div class="hotbar-slot" data-block="2" onclick="select_slot(2)"><div class="hotbar-icon">🪨</div><div class="hotbar-label">Камень</div></div>
-              <div class="hotbar-slot" data-block="8" onclick="select_slot(8)"><div class="hotbar-icon">🪵</div><div class="hotbar-label">Дерево</div></div>
-              <div class="hotbar-slot" data-block="3" onclick="select_slot(3)"><div class="hotbar-icon">⬛</div><div class="hotbar-label">Обса</div></div>
-              <div class="hotbar-slot" data-block="9" onclick="select_slot(9)"><div class="hotbar-icon">🔮</div><div class="hotbar-label">Чары</div></div>
+          <!-- ДРАГГАБЛ: Хотбар -->
+          <div id="hud-hotbar" class="draggable-hud" style="bottom: 10px; left: 50px;">
+            <div class="hotbar-container">
+              <div class="hotbar-slot active" id="hb-0" onclick="select_slot(0)"><div class="hotbar-icon" id="hi-0">⛏️</div><div class="hotbar-label" id="hl-0">Кирка</div></div>
+              <div class="hotbar-slot" id="hb-1" onclick="select_slot(1)"><div class="hotbar-icon" id="hi-1">🟫</div><div class="hotbar-label" id="hl-1">Земля</div></div>
+              <div class="hotbar-slot" id="hb-2" onclick="select_slot(2)"><div class="hotbar-icon" id="hi-2">🪨</div><div class="hotbar-label" id="hl-2">Камень</div></div>
+              <div class="hotbar-slot" id="hb-3" onclick="select_slot(3)"><div class="hotbar-icon" id="hi-3">🪵</div><div class="hotbar-label" id="hl-3">Дерево</div></div>
+              <div class="hotbar-slot" id="hb-4" onclick="select_slot(4)"><div class="hotbar-icon" id="hi-4">⬛</div><div class="hotbar-label" id="hl-4">Обса</div></div>
+              
+              <!-- Кнопка инвентаря блоков -->
+              <div class="hotbar-slot" style="background:#241; border-color:#0a0;" onclick="open_block_inventory()">
+                <div class="hotbar-icon">🎒</div><div class="hotbar-label">Все Блоки</div>
+              </div>
             </div>
           </div>
 
+          <!-- ОТДЕЛЬНЫЕ ДРАГГАБЛ КНОПКИ ДЕЙСТВИЙ -->
+          <div id="hud-btn-jump" class="draggable-hud" style="bottom: 20px; right: 20px;">
+            <button class="buy-btn blue" style="width:65px; height:65px; border-radius:50%; font-size:24px; padding:0; box-shadow: 0 0 10px rgba(0,100,255,0.5);" id="btn-jump">⬆️</button>
+          </div>
 
-          <!-- ДРАГГАБЛ 3: Кнопки действий -->
-          <div id="hud-actions" class="draggable-hud" style="bottom: 15px; right: 15px;">
-            <div style="display:flex; flex-direction:column; gap:12px; align-items:flex-end;">
-              <button class="buy-btn gold" style="width:40px; height:40px; border-radius:50%; font-size:16px; padding:0;">🍎</button>
-              <button class="buy-btn purple" style="width:50px; height:50px; border-radius:50%; font-size:18px; padding:0;">🔮</button>
-              <button class="buy-btn blue" style="width:65px; height:65px; border-radius:50%; font-size:24px; padding:0; box-shadow: 0 0 10px rgba(0,100,255,0.5);" id="btn-jump">⬆️</button>
-            </div>
+          <div id="hud-btn-pearl" class="draggable-hud" style="bottom: 95px; right: 25px;">
+            <button class="buy-btn purple" style="width:50px; height:50px; border-radius:50%; font-size:18px; padding:0;">🔮</button>
+          </div>
+
+          <div id="hud-btn-heal" class="draggable-hud" style="bottom: 155px; right: 30px;">
+            <button class="buy-btn gold" style="width:40px; height:40px; border-radius:50%; font-size:16px; padding:0;">🍎</button>
+          </div>
+          
+          <div id="hud-btn-attack" class="draggable-hud" style="bottom: 20px; right: 95px;">
+            <button class="buy-btn red" style="width:60px; height:60px; border-radius:50%; font-size:22px; padding:0; box-shadow: 0 0 10px rgba(255,0,0,0.5);">⚔️</button>
           </div>
 
         </div>
+      </div>
+    </div>
 
-        <div style="background:#111; padding:15px; border-radius:8px; border:1px solid #333; margin-top: 10px;">
-          <div style="text-align:center; color:#aaa; font-size:12px;">
-            <b>ИНСТРУКЦИЯ:</b><br>
-            Джойстик — бег. Кнопка ⬆️ — прыжок.<br>
-            Нажми "РЕДАКТИРОВАТЬ HUD", чтобы двигать кнопки и блоки по экрану.<br>
-            Время суток меняется само. Анимации работают при беге.
-          </div>
+    <!-- МОДАЛКА ВЫБОРА БЛОКОВ -->
+    <div id="sandbox-inventory-modal" class="modal-overlay" style="z-index:9999;">
+      <div class="modal-content" style="width: 90%; max-width: 400px; padding: 15px;">
+        <div class="modal-title">РЮКЗАК (40 ПРЕДМЕТОВ)</div>
+        <div style="font-size:11px; color:#aaa; margin-bottom:10px;">Выбери блок, чтобы положить его в активный слот хотбара.</div>
+        <div class="inv-grid-2d" id="sandbox-inv-grid">
+          <!-- Генерируется скриптом -->
         </div>
+        <button class="buy-btn red" style="width:100%; margin-top:15px;" onclick="document.getElementById('sandbox-inventory-modal').style.display='none'">ЗАКРЫТЬ</button>
       </div>
     </div>
   </div>
