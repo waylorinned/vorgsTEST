@@ -9,6 +9,7 @@ let vel_x = 0;
 let vel_y = 0;
 let is_grounded = false;
 let face_dir = 1; 
+let is_jumping_btn = false; // Флаг зажатой кнопки прыжка
 
 const BLOCK_SIZE = 32; 
 const PLAYER_W = 20;   
@@ -20,10 +21,12 @@ let is_hud_edit = false;
 
 // ИНВЕНТАРЬ И ХОТБАР
 let active_slot = 0; 
-let hotbar_items = [0, 1, 2, 8, 3]; 
+// Теперь 99 (Рука) по умолчанию на первом месте
+let hotbar_items = [99, 0, 1, 2, 3]; 
 
-// БАЗА ДАННЫХ ВСЕХ 40 БЛОКОВ
+// БАЗА ДАННЫХ ВСЕХ 41 БЛОКОВ (+ Рука)
 const BLOCK_DB = {
+    99: { name: "Рука", icon: "🖐️", color: "transparent" },
     0: { name: "Кирка", icon: "⛏️", color: "transparent" },
     1: { name: "Земля", icon: "🟫", color: "#654321" },
     2: { name: "Камень", icon: "🪨", color: "#808080" },
@@ -128,7 +131,7 @@ window.open_block_inventory = function() {
     let grid = document.getElementById('sandbox-inv-grid');
     let html = '';
     for(let key in BLOCK_DB) {
-        if(key >= 300) continue; // Пропускаем технические блоки из инвентаря
+        if(key >= 300) continue; 
         let b = BLOCK_DB[key];
         html += `<div class="inv-item-2d" onclick="set_hotbar_item(${key})">
                     ${b.icon}
@@ -149,6 +152,7 @@ function init_map() {
     canvas = document.getElementById('rtp-canvas');
     if (canvas) ctx = canvas.getContext('2d');
     
+    // ДЖОЙСТИК
     let joyZone = document.getElementById('joystick-zone'); 
     let joyKnob = document.getElementById('joystick-knob'); 
     let jRect = null;
@@ -166,63 +170,95 @@ function init_map() {
         joyX = dx / maxD; 
     }
 
+    // КНОПКА ПРЫЖКА (Зажатие)
     let btnJump = document.getElementById('btn-jump');
     if(btnJump) {
-        let jumpFn = (e) => {
-            if(is_hud_edit) return;
-            e.preventDefault();
-            if(is_grounded) { vel_y = -8.5; is_grounded = false; }
-        };
-        btnJump.addEventListener('touchstart', jumpFn, {passive:false});
-        btnJump.addEventListener('mousedown', jumpFn);
+        let jumpStart = (e) => { if(is_hud_edit) return; e.preventDefault(); is_jumping_btn = true; };
+        let jumpEnd = (e) => { if(is_hud_edit) return; e.preventDefault(); is_jumping_btn = false; };
+        
+        btnJump.addEventListener('touchstart', jumpStart, {passive:false});
+        btnJump.addEventListener('mousedown', jumpStart);
+        btnJump.addEventListener('touchend', jumpEnd, {passive:false});
+        btnJump.addEventListener('mouseup', jumpEnd);
+        btnJump.addEventListener('mouseleave', jumpEnd); // Если мышка ушла с кнопки
     }
 
+    // КЛИК И СВАЙП ПО КАРТЕ (МУЛЬТИТАЧ)
     if (canvas) {
+        // Касание
         canvas.addEventListener('touchstart', e => {
             if(is_hud_edit) return;
+            e.preventDefault();
             let rect = canvas.getBoundingClientRect();
-            process_build_click(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
-        }, {passive:true});
+            for(let i=0; i<e.changedTouches.length; i++) {
+                process_build_click(e.changedTouches[i].clientX - rect.left, e.changedTouches[i].clientY - rect.top, false);
+            }
+        }, {passive:false});
+        
+        // Ведение пальцем по экрану (непрерывное строительство/копание)
+        canvas.addEventListener('touchmove', e => {
+            if(is_hud_edit) return;
+            e.preventDefault();
+            let rect = canvas.getBoundingClientRect();
+            for(let i=0; i<e.changedTouches.length; i++) {
+                process_build_click(e.changedTouches[i].clientX - rect.left, e.changedTouches[i].clientY - rect.top, true);
+            }
+        }, {passive:false});
+
+        // Для мышки на компе
+        let is_mouse_down = false;
         canvas.addEventListener('mousedown', e => {
             if(is_hud_edit) return;
+            is_mouse_down = true;
             let rect = canvas.getBoundingClientRect();
-            process_build_click(e.clientX - rect.left, e.clientY - rect.top);
+            process_build_click(e.clientX - rect.left, e.clientY - rect.top, false);
         });
+        canvas.addEventListener('mousemove', e => {
+            if(is_hud_edit || !is_mouse_down) return;
+            let rect = canvas.getBoundingClientRect();
+            process_build_click(e.clientX - rect.left, e.clientY - rect.top, true);
+        });
+        canvas.addEventListener('mouseup', () => is_mouse_down = false);
+        canvas.addEventListener('mouseleave', () => is_mouse_down = false);
     }
+    
     setup_hud_drag();
 }
 
-function process_build_click(tx, ty) {
+// ФУНКЦИЯ ВЗАИМОДЕЙСТВИЯ С МИРОМ
+function process_build_click(tx, ty, is_drag) {
     let cx = canvas.width / 2; let cy = canvas.height / 2;
     let worldX = tx - cx + loc_x; let worldY = ty - cy + loc_y - (PLAYER_H / 2);
     let gridX = Math.floor(worldX / BLOCK_SIZE); let gridY = Math.floor(worldY / BLOCK_SIZE);
     
-    if(Math.hypot(worldX - loc_x, worldY - loc_y) > 200) return; 
+    if(Math.hypot(worldX - loc_x, worldY - loc_y) > 220) return; 
     let key = gridX + '_' + gridY;
     
     let current_block = hotbar_items[active_slot];
     let clicked_block = local_blocks[key];
 
-    // ИНТЕРАКТИВ ИЛИ ЛОМАНИЕ
-    if (clicked_block) {
-        if (current_block === 0) {
-            // Кирка - значит ломаем
-            delete local_blocks[key];
-            return;
-        } else {
-            // Если в руках не кирка, пытаемся взаимодействовать
-            if (clicked_block === 32) { local_blocks[key] = 321; return; } // Рычаг ВКЛ
-            if (clicked_block === 321) { local_blocks[key] = 32; return; } // Рычаг ВЫКЛ
-            if (clicked_block === 38) { local_blocks[key] = 381; return; } // Люк ОТКРЫТ
-            if (clicked_block === 381) { local_blocks[key] = 38; return; } // Люк ЗАКРЫТ
+    // ЕСЛИ В РУКАХ ПУСТАЯ РУКА (99) -> ТОЛЬКО ВЗАИМОДЕЙСТВИЕ
+    if (current_block === 99) {
+        if (clicked_block && !is_drag) { // Взаимодействуем только при клике, а не при свайпе
+            if (clicked_block === 32) { local_blocks[key] = 321; return; } 
+            if (clicked_block === 321) { local_blocks[key] = 32; return; } 
+            if (clicked_block === 38) { local_blocks[key] = 381; return; } 
+            if (clicked_block === 381) { local_blocks[key] = 38; return; } 
             if (clicked_block === 19) { alert("📦 Открываем сундук..."); return; }
             if (clicked_block === 17) { alert("🛠️ Открываем верстак..."); return; }
             if (clicked_block === 20) { alert("🔮 Открываем стол зачарований..."); return; }
         }
+        return; // Рукой ничего не ломаем и не ставим
     }
 
-    // СТРОИТЕЛЬСТВО
-    if (current_block !== 0 && !clicked_block) {
+    // ЕСЛИ В РУКАХ КИРКА (0) -> ЛОМАЕМ БЛОКИ
+    if (current_block === 0) {
+        if (clicked_block) delete local_blocks[key];
+        return;
+    } 
+    
+    // ИНАЧЕ -> СТРОИМ БЛОКИ (можно непрерывно вести пальцем)
+    if (!clicked_block) {
         let pL = Math.floor((loc_x - PLAYER_W/2) / BLOCK_SIZE);
         let pR = Math.floor((loc_x + PLAYER_W/2 - 0.1) / BLOCK_SIZE);
         let pT = Math.floor((loc_y - PLAYER_H) / BLOCK_SIZE);
@@ -245,8 +281,7 @@ function check_collision(nx, ny) {
         for (let by = top; by <= bottom; by++) {
             let bId = local_blocks[bx + '_' + by];
             if (bId) {
-                // Блоки, сквозь которые можно пройти
-                let passThrough = [23, 24, 30, 31, 32, 321, 33, 37, 381].includes(bId); // 381 = открытый люк!
+                let passThrough = [23, 24, 30, 31, 32, 321, 33, 37, 381].includes(bId); 
                 if (!passThrough) return true;
             }
         }
@@ -266,7 +301,7 @@ function draw_map() {
     let is_day = time_cycle > 0;
     
     if (!is_hud_edit) {
-        vel_x = joyX * 5; 
+        vel_x = joyX * 5.5; // Чуть ускорил бег для комфорта
         if(vel_x > 0.1) face_dir = 1;
         if(vel_x < -0.1) face_dir = -1;
     } else { vel_x = 0; }
@@ -283,6 +318,12 @@ function draw_map() {
         if (vel_y > 0) is_grounded = true; 
         vel_y = 0;
         if (is_grounded) loc_y = Math.floor(loc_y); 
+    }
+
+    // АВТО-ПРЫЖОК ПРИ ЗАЖАТОЙ КНОПКЕ
+    if (is_jumping_btn && is_grounded) {
+        vel_y = -8.5;
+        is_grounded = false;
     }
 
     document.getElementById('map-x').innerText = Math.floor(loc_x / BLOCK_SIZE);
@@ -318,39 +359,36 @@ function draw_map() {
             let bId = local_blocks[key];
             let blockDef = BLOCK_DB[bId];
             
-            // Отрисовка кастомных форм блоков
-            if (bId === 32 || bId === 321) { // РЫЧАГ
-                ctx.fillStyle = '#444'; ctx.fillRect(screenX+8, screenY+24, 16, 8); // База
-                ctx.fillStyle = '#8B4513'; // Палка
-                if (bId === 32) ctx.fillRect(screenX+14, screenY+10, 4, 14); // Выкл (вверх)
-                else ctx.fillRect(screenX+22, screenY+18, 10, 4); // Вкл (вбок)
+            if (bId === 32 || bId === 321) { 
+                ctx.fillStyle = '#444'; ctx.fillRect(screenX+8, screenY+24, 16, 8); 
+                ctx.fillStyle = '#8B4513'; 
+                if (bId === 32) ctx.fillRect(screenX+14, screenY+10, 4, 14); 
+                else ctx.fillRect(screenX+22, screenY+18, 10, 4); 
             }
-            else if (bId === 38 || bId === 381) { // ЛЮК
+            else if (bId === 38 || bId === 381) { 
                 ctx.fillStyle = '#7a5531';
-                if (bId === 38) ctx.fillRect(screenX, screenY+24, BLOCK_SIZE, 8); // Закрыт
-                else ctx.fillRect(screenX+24, screenY, 8, BLOCK_SIZE); // Открыт (встал вертикально)
+                if (bId === 38) ctx.fillRect(screenX, screenY+24, BLOCK_SIZE, 8); 
+                else ctx.fillRect(screenX+24, screenY, 8, BLOCK_SIZE); 
                 ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1; ctx.strokeRect(screenX, screenY+24, BLOCK_SIZE, 8);
             }
             else {
-                // Стандартные блоки
                 ctx.fillStyle = blockDef.color;
                 if (ctx.fillStyle !== 'rgba(0, 0, 0, 0)' && ctx.fillStyle !== 'transparent') {
                     ctx.fillRect(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE);
                 }
                 
-                // Декорации
-                if (bId === 1) { // Трава
+                if (bId === 1) { 
                     ctx.fillStyle = `rgb(${34-blockDarken/2}, ${139-blockDarken/2}, ${34-blockDarken/2})`;
                     ctx.fillRect(screenX, screenY, BLOCK_SIZE, 6);
-                } else if (blockDef.ore) { // Руды
+                } else if (blockDef.ore) { 
                     ctx.fillStyle = blockDef.ore; 
                     ctx.fillRect(screenX+6, screenY+6, 5, 5); ctx.fillRect(screenX+20, screenY+16, 6, 6); ctx.fillRect(screenX+8, screenY+22, 4, 4);
-                } else if (bId === 20) { // Стол зачарований
+                } else if (bId === 20) { 
                     ctx.fillStyle = '#8B0000'; ctx.fillRect(screenX, screenY, BLOCK_SIZE, 8);
                     ctx.fillStyle = '#FFD700'; ctx.fillRect(screenX+12, screenY-6, 8, 6); 
-                } else if (bId === 23) { // Редстоун пыль
+                } else if (bId === 23) { 
                     ctx.fillStyle = '#F00'; ctx.fillRect(screenX, screenY+28, BLOCK_SIZE, 4);
-                } else if (bId === 37) { // Решетка
+                } else if (bId === 37) { 
                     ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.moveTo(screenX+16, screenY); ctx.lineTo(screenX+16, screenY+32); ctx.stroke();
                     ctx.beginPath(); ctx.moveTo(screenX, screenY+16); ctx.lineTo(screenX+32, screenY+16); ctx.stroke();
@@ -378,7 +416,7 @@ function draw_map() {
     requestAnimationFrame(draw_map);
 }
 
-// Редактор HUD (Drag & Drop)
+// Редактор HUD
 window.toggle_hud_edit = function() {
     is_hud_edit = !is_hud_edit;
     let btn = document.getElementById('btn-edit-hud');
