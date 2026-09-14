@@ -4,46 +4,69 @@ let joyX = 0, joyY = 0, isJoyActive = false;
 
 // Координаты и физика
 let loc_x = 0;
-let loc_y = -100; 
+let loc_y = -800; // Спавнимся высоко в небе, чтобы упасть на ландшафт
 let vel_x = 0;
 let vel_y = 0;
 let is_grounded = false;
-let face_dir = 1; // 1 = смотрит вправо, -1 = смотрит влево
+let face_dir = 1; 
 
 const BLOCK_SIZE = 32; 
 const PLAYER_W = 20;   
 const PLAYER_H = 30;   
 
 let local_blocks = {};
-let current_block = 1; 
+let current_block = 0; // По умолчанию кирка
 
-// Время (для дня и ночи)
 let game_time = 0; 
-
-// Редактор HUD
 let is_hud_edit = false;
 
 window.addEventListener('DOMContentLoaded', () => {
     init_map();
-    generate_flat_world();
+    generate_landscape();
     load_hud_positions();
     requestAnimationFrame(draw_map);
 });
 
-function generate_flat_world() {
-    for(let i = -60; i <= 60; i++) {
-        local_blocks[i + '_0'] = 1; 
-        local_blocks[i + '_1'] = 2; 
-        local_blocks[i + '_2'] = 2; 
-        local_blocks[i + '_3'] = 3; 
+// ГЕНЕРАЦИЯ ЛАНДШАФТА, ПЕЩЕР И РУД
+function generate_landscape() {
+    for(let x = -200; x <= 200; x++) {
+        // Генерация холмов (волнистый рельеф)
+        let surfaceY = Math.floor(Math.sin(x * 0.1) * 4 + Math.cos(x * 0.05) * 6);
+        
+        // Слой травы и земли (3 блока)
+        for(let y = surfaceY; y <= surfaceY + 2; y++) {
+            local_blocks[x + '_' + y] = 1; // 1 = Земля
+        }
+        
+        // Слой камня, пещер и руд (идет глубоко вниз)
+        for(let y = surfaceY + 3; y <= surfaceY + 50; y++) {
+            // Математика пещер (пустоты)
+            let caveNoise = Math.sin(x * 0.2) * Math.cos(y * 0.2) + Math.sin(x * 0.1);
+            if (caveNoise > 0.7) continue; // Это пустота (пещера)
+
+            let block = 2; // По умолчанию камень
+            
+            // Генерация руд
+            let r = Math.random();
+            if (y > surfaceY + 25) { // Глубоко (Алмазы, Лазурит, Изумруды)
+                if (r < 0.015) block = 5; // Алмазы
+                else if (r < 0.02) block = 6; // Изумруды
+                else if (r < 0.04) block = 4; // Лазурит
+                else if (r < 0.08) block = 7; // Железо
+            } else { // Ближе к поверхности (Уголь, Железо)
+                if (r < 0.05) block = 7; // Железо
+            }
+            
+            local_blocks[x + '_' + y] = block;
+        }
+        
+        // Бедрок / Обсидиан на самом дне
+        local_blocks[x + '_' + (surfaceY + 51)] = 3;
     }
-    // Построим пару стенок для тестов паркура
-    local_blocks['5_-1'] = 2; local_blocks['5_-2'] = 2;
-    local_blocks['9_-3'] = 2;
 }
 
 window.select_slot = function(id) {
-    if(is_hud_edit) return; // В режиме редактирования не выбираем блоки
+    if(is_hud_edit) return; 
     current_block = id;
     document.querySelectorAll('.hotbar-slot').forEach(el => el.classList.remove('active'));
     document.querySelector(`.hotbar-slot[data-block="${id}"]`).classList.add('active');
@@ -53,7 +76,6 @@ function init_map() {
     canvas = document.getElementById('rtp-canvas');
     if (canvas) ctx = canvas.getContext('2d');
     
-    // Джойстик
     let joyZone = document.getElementById('joystick-zone'); 
     let joyKnob = document.getElementById('joystick-knob'); 
     let jRect = null;
@@ -72,7 +94,6 @@ function init_map() {
         joyX = dx / maxD; 
     }
 
-    // Прыжок
     let btnJump = document.getElementById('btn-jump');
     if(btnJump) {
         let jumpFn = (e) => {
@@ -84,7 +105,6 @@ function init_map() {
         btnJump.addEventListener('mousedown', jumpFn);
     }
 
-    // Клик по миру
     if (canvas) {
         canvas.addEventListener('touchstart', e => {
             if(is_hud_edit) return;
@@ -97,7 +117,6 @@ function init_map() {
             process_build_click(e.clientX - rect.left, e.clientY - rect.top);
         });
     }
-
     setup_hud_drag();
 }
 
@@ -106,7 +125,7 @@ function process_build_click(tx, ty) {
     let worldX = tx - cx + loc_x; let worldY = ty - cy + loc_y - (PLAYER_H / 2);
     let gridX = Math.floor(worldX / BLOCK_SIZE); let gridY = Math.floor(worldY / BLOCK_SIZE);
     
-    if(Math.hypot(worldX - loc_x, worldY - loc_y) > 180) return; // Дистанция строительства
+    if(Math.hypot(worldX - loc_x, worldY - loc_y) > 200) return; // Можно строить немного дальше
     let key = gridX + '_' + gridY;
     
     if (current_block === 0) {
@@ -116,7 +135,7 @@ function process_build_click(tx, ty) {
         let pR = Math.floor((loc_x + PLAYER_W/2 - 0.1) / BLOCK_SIZE);
         let pT = Math.floor((loc_y - PLAYER_H) / BLOCK_SIZE);
         let pB = Math.floor((loc_y - 0.1) / BLOCK_SIZE);
-        if (gridX >= pL && gridX <= pR && gridY >= pT && gridY <= pB) return; // Внутри себя нельзя
+        if (gridX >= pL && gridX <= pR && gridY >= pT && gridY <= pB) return; 
         local_blocks[key] = current_block;
     }
 }
@@ -142,11 +161,10 @@ function draw_map() {
         canvas.width = wrap.clientWidth; canvas.height = wrap.clientHeight;
     }
     
-    game_time += 0.002; // Скорость течения времени
-    let time_cycle = Math.sin(game_time); // от -1 до 1
+    game_time += 0.002; 
+    let time_cycle = Math.sin(game_time); 
     let is_day = time_cycle > 0;
     
-    // --- Движение ---
     if (!is_hud_edit) {
         vel_x = joyX * 5; 
         if(vel_x > 0.1) face_dir = 1;
@@ -167,13 +185,11 @@ function draw_map() {
         if (is_grounded) loc_y = Math.floor(loc_y); 
     }
 
-    // Обновляем текст
     document.getElementById('map-x').innerText = Math.floor(loc_x / BLOCK_SIZE);
     document.getElementById('map-y').innerText = -Math.floor(loc_y / BLOCK_SIZE);
     document.getElementById('time-display').innerText = is_day ? "☀️ День" : "🌙 Ночь";
 
-    // --- РЕНДЕР НЕБА И СВЕТИЛ ---
-    // Плавно меняем цвет неба: от голубого (день) к темно-синему (ночь)
+    // Небо
     let skyR = Math.floor(10 + ((time_cycle + 1)/2) * (135 - 10));
     let skyG = Math.floor(10 + ((time_cycle + 1)/2) * (206 - 10));
     let skyB = Math.floor(42 + ((time_cycle + 1)/2) * (235 - 42));
@@ -182,24 +198,17 @@ function draw_map() {
     
     let cx = canvas.width / 2; let cy = canvas.height / 2;
 
-    // Солнце и луна (двигаются по дуге)
     let sunX = cx - Math.cos(game_time) * (canvas.width/1.5);
-    let sunY = cy + Math.sin(game_time) * (canvas.height) + 100; // Y инвертирован, чтобы всходило сверху
-    
+    let sunY = cy + Math.sin(game_time) * (canvas.height) + 100; 
     let moonX = cx + Math.cos(game_time) * (canvas.width/1.5);
     let moonY = cy - Math.sin(game_time) * (canvas.height) + 100;
 
-    // Солнце
-    ctx.fillStyle = '#FFD700';
-    ctx.beginPath(); ctx.arc(sunX, sunY, 25, 0, Math.PI*2); ctx.fill();
-    // Луна
-    ctx.fillStyle = '#DDDDDD';
-    ctx.beginPath(); ctx.arc(moonX, moonY, 20, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#FFD700'; ctx.beginPath(); ctx.arc(sunX, sunY, 25, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#DDDDDD'; ctx.beginPath(); ctx.arc(moonX, moonY, 20, 0, Math.PI*2); ctx.fill();
 
-    // --- РЕНДЕР БЛОКОВ ---
-    // Ночью блоки чуть темнее
     let blockDarken = is_day ? 0 : 40;
 
+    // Отрисовка блоков и руд
     for (let key in local_blocks) {
         let coords = key.split('_');
         let screenX = cx + (parseInt(coords[0]) * BLOCK_SIZE - loc_x);
@@ -208,68 +217,61 @@ function draw_map() {
         if (screenX > -BLOCK_SIZE && screenX < canvas.width && screenY > -BLOCK_SIZE && screenY < canvas.height) {
             let type = local_blocks[key];
             
+            // Базовые цвета
             if (type === 1) ctx.fillStyle = `rgb(${101-blockDarken}, ${67-blockDarken}, ${33-blockDarken})`; // Земля
-            if (type === 2) ctx.fillStyle = `rgb(${128-blockDarken}, ${128-blockDarken}, ${128-blockDarken})`; // Камень
-            if (type === 3) ctx.fillStyle = '#1e0036'; // Обсидиан (всегда темный)
+            else if (type === 8) ctx.fillStyle = `rgb(${139-blockDarken}, ${90-blockDarken}, ${43-blockDarken})`; // Дерево
+            else if (type === 3) ctx.fillStyle = '#1e0036'; // Обсидиан
+            else if (type === 9) ctx.fillStyle = '#111'; // Стол зачарований (база)
+            else ctx.fillStyle = `rgb(${128-blockDarken}, ${128-blockDarken}, ${128-blockDarken})`; // Камень и Руды (база)
             
             ctx.fillRect(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE);
+            
+            // Детали блоков
             if (type === 1) { // Трава
                 ctx.fillStyle = `rgb(${34-blockDarken/2}, ${139-blockDarken/2}, ${34-blockDarken/2})`;
                 ctx.fillRect(screenX, screenY, BLOCK_SIZE, 6);
+            } else if (type === 4) { // Лазурит
+                ctx.fillStyle = '#1E90FF'; ctx.fillRect(screenX+6, screenY+6, 6, 6); ctx.fillRect(screenX+18, screenY+18, 5, 5);
+            } else if (type === 5) { // Алмаз
+                ctx.fillStyle = '#00FFFF'; ctx.fillRect(screenX+4, screenY+8, 7, 7); ctx.fillRect(screenX+20, screenY+15, 6, 6);
+            } else if (type === 6) { // Изумруд
+                ctx.fillStyle = '#32CD32'; ctx.fillRect(screenX+8, screenY+4, 5, 8); ctx.fillRect(screenX+16, screenY+20, 8, 5);
+            } else if (type === 7) { // Железо
+                ctx.fillStyle = '#FFDAB9'; ctx.fillRect(screenX+5, screenY+5, 6, 6); ctx.fillRect(screenX+20, screenY+20, 6, 6);
+            } else if (type === 8) { // Дерево (текстура коры)
+                ctx.fillStyle = `rgb(${100-blockDarken}, ${50-blockDarken}, ${20-blockDarken})`;
+                ctx.fillRect(screenX+8, screenY, 2, BLOCK_SIZE); ctx.fillRect(screenX+22, screenY, 2, BLOCK_SIZE);
+            } else if (type === 9) { // Стол зачарований
+                ctx.fillStyle = '#8B0000'; ctx.fillRect(screenX, screenY, BLOCK_SIZE, 8); // Красная скатерть
+                ctx.fillStyle = '#FFD700'; ctx.fillRect(screenX+12, screenY-6, 8, 6); // Книга сверху
             }
+
             ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1;
             ctx.strokeRect(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE);
         }
     }
 
-    // --- РЕНДЕР ИГРОКА (С АНИМАЦИЯМИ) ---
-    // Вычисляем фазу анимации при ходьбе (от -1 до 1)
+    // Игрок
     let walk_anim = Math.sin(Date.now() / 100) * (Math.abs(vel_x) > 0.5 ? 1 : 0);
+    ctx.fillStyle = '#29d'; ctx.fillRect(cx - 2 + (face_dir * 10) - (walk_anim * 6 * face_dir), cy - 4, 6, 14);
+    ctx.fillStyle = '#114'; ctx.fillRect(cx - 3 + (face_dir * 4) + (walk_anim * 8 * face_dir), cy + 12, 6, 10);
+    ctx.fillStyle = '#2bf'; ctx.fillRect(cx - 9, cy - 4, 18, 16);
+    ctx.fillStyle = '#115'; ctx.fillRect(cx - 3 - (face_dir * 4) - (walk_anim * 8 * face_dir), cy + 12, 6, 10);
+    ctx.fillStyle = '#f5c6a5'; ctx.fillRect(cx - 8, cy - 20, 16, 16);
     
-    // Задняя рука (Алмазный цвет)
-    ctx.fillStyle = '#29d'; 
-    ctx.fillRect(cx - 2 + (face_dir * 10) - (walk_anim * 6 * face_dir), cy - 4, 6, 14);
-
-    // Задняя нога (Синие штаны)
-    ctx.fillStyle = '#114'; 
-    ctx.fillRect(cx - 3 + (face_dir * 4) + (walk_anim * 8 * face_dir), cy + 12, 6, 10);
-
-    // Тело (Нагрудник)
-    ctx.fillStyle = '#2bf'; 
-    ctx.fillRect(cx - 9, cy - 4, 18, 16);
-    
-    // Передняя нога
-    ctx.fillStyle = '#115'; 
-    ctx.fillRect(cx - 3 - (face_dir * 4) - (walk_anim * 8 * face_dir), cy + 12, 6, 10);
-
-    // Голова (Лицо)
-    ctx.fillStyle = '#f5c6a5'; 
-    ctx.fillRect(cx - 8, cy - 20, 16, 16);
-    
-    // Глаза (смотрят в face_dir)
     let eyeOffsetX = face_dir === 1 ? 2 : -4;
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(cx - 2 + eyeOffsetX, cy - 16, 4, 4); // левый глаз
-    ctx.fillRect(cx + 4 + eyeOffsetX, cy - 16, 4, 4); // правый глаз
-    ctx.fillStyle = '#000';
-    ctx.fillRect(cx - 1 + eyeOffsetX + (face_dir===1?1:0), cy - 15, 2, 2); 
-    ctx.fillRect(cx + 5 + eyeOffsetX + (face_dir===1?1:0), cy - 15, 2, 2);
-
-    // Передняя рука
-    ctx.fillStyle = '#2bf'; 
-    ctx.fillRect(cx - 4 - (face_dir * 8) + (walk_anim * 6 * face_dir), cy - 4, 6, 14);
+    ctx.fillStyle = '#fff'; ctx.fillRect(cx - 2 + eyeOffsetX, cy - 16, 4, 4); ctx.fillRect(cx + 4 + eyeOffsetX, cy - 16, 4, 4); 
+    ctx.fillStyle = '#000'; ctx.fillRect(cx - 1 + eyeOffsetX + (face_dir===1?1:0), cy - 15, 2, 2); ctx.fillRect(cx + 5 + eyeOffsetX + (face_dir===1?1:0), cy - 15, 2, 2);
+    ctx.fillStyle = '#2bf'; ctx.fillRect(cx - 4 - (face_dir * 8) + (walk_anim * 6 * face_dir), cy - 4, 6, 14);
 
     requestAnimationFrame(draw_map);
 }
 
-// ==========================================
-// ЛОГИКА КАСТОМИЗАЦИИ HUD (DRAG AND DROP)
-// ==========================================
+// Редактор HUD (Drag & Drop)
 window.toggle_hud_edit = function() {
     is_hud_edit = !is_hud_edit;
     let btn = document.getElementById('btn-edit-hud');
     let wrap = document.getElementById('map-wrapper');
-    
     if (is_hud_edit) {
         btn.innerText = "💾 СОХРАНИТЬ HUD";
         btn.style.background = "#0f0"; btn.style.color = "#000";
@@ -290,52 +292,29 @@ function setup_hud_drag() {
             if(!is_hud_edit) return;
             e.preventDefault(); e.stopPropagation();
             activeDrag = el;
-            
-            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            startX = clientX; startY = clientY;
-            initialX = activeDrag.offsetLeft;
-            initialY = activeDrag.offsetTop;
-            
-            // Сбрасываем привязки bottom/right/transform, чтобы drag работал чисто по left/top
-            activeDrag.style.bottom = 'auto';
-            activeDrag.style.right = 'auto';
-            activeDrag.style.transform = 'none';
-            activeDrag.style.left = initialX + 'px';
-            activeDrag.style.top = initialY + 'px';
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX; let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            startX = clientX; startY = clientY; initialX = activeDrag.offsetLeft; initialY = activeDrag.offsetTop;
+            activeDrag.style.bottom = 'auto'; activeDrag.style.right = 'auto'; activeDrag.style.transform = 'none';
+            activeDrag.style.left = initialX + 'px'; activeDrag.style.top = initialY + 'px';
         };
-        el.addEventListener('touchstart', handleStart, {passive: false});
-        el.addEventListener('mousedown', handleStart);
+        el.addEventListener('touchstart', handleStart, {passive: false}); el.addEventListener('mousedown', handleStart);
     });
 
     let handleMove = (e) => {
         if(!activeDrag || !is_hud_edit) return;
         e.preventDefault();
-        let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        
-        let dx = clientX - startX;
-        let dy = clientY - startY;
-        
-        activeDrag.style.left = (initialX + dx) + 'px';
-        activeDrag.style.top = (initialY + dy) + 'px';
+        let clientX = e.touches ? e.touches[0].clientX : e.clientX; let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        activeDrag.style.left = (initialX + (clientX - startX)) + 'px'; activeDrag.style.top = (initialY + (clientY - startY)) + 'px';
     };
 
     let handleEnd = (e) => {
         if(!activeDrag || !is_hud_edit) return;
-        // Сохраняем позицию в память телефона
-        localStorage.setItem('v4_hud_' + activeDrag.id, JSON.stringify({
-            left: activeDrag.style.left,
-            top: activeDrag.style.top
-        }));
+        localStorage.setItem('v4_hud_' + activeDrag.id, JSON.stringify({ left: activeDrag.style.left, top: activeDrag.style.top }));
         activeDrag = null;
     };
 
-    document.addEventListener('touchmove', handleMove, {passive: false});
-    document.addEventListener('touchend', handleEnd);
-    document.addEventListener('mousemove', handleMove);
-    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleMove, {passive: false}); document.addEventListener('touchend', handleEnd);
+    document.addEventListener('mousemove', handleMove); document.addEventListener('mouseup', handleEnd);
 }
 
 function load_hud_positions() {
@@ -343,11 +322,8 @@ function load_hud_positions() {
         let saved = localStorage.getItem('v4_hud_' + el.id);
         if(saved) {
             let pos = JSON.parse(saved);
-            el.style.bottom = 'auto';
-            el.style.right = 'auto';
-            el.style.transform = 'none';
-            el.style.left = pos.left;
-            el.style.top = pos.top;
+            el.style.bottom = 'auto'; el.style.right = 'auto'; el.style.transform = 'none';
+            el.style.left = pos.left; el.style.top = pos.top;
         }
     });
 }
