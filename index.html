@@ -3,170 +3,86 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
-  <title>vorgster kombat - 2D SANDBOX</title>
+  <title>vorgster kombat - 2D SANDBOX FINAL</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
   <script src="script.js" defer></script>
   <style>
-    /* Стили для хотбара строительства */
+    /* Стили для 2D песочницы */
+    .map-wrapper { position: relative; overflow: hidden; border: 2px solid #333; border-radius: 8px; height: 60vh; touch-action: none; }
+    
+    .draggable-hud { position: absolute; z-index: 20; transition: border 0.2s, background 0.2s; }
+    .hud-edit-mode .draggable-hud { border: 2px dashed #0f0 !important; background: rgba(0, 255, 0, 0.2) !important; cursor: move; }
+    
     .hotbar-slot {
-      width: 35px; height: 35px; background: rgba(0,0,0,0.6); border: 2px solid #555;
-      border-radius: 4px; display: flex; justify-content: center; align-items: center;
-      font-size: 20px; transition: 0.1s;
+      width: 45px; height: 45px; background: rgba(0,0,0,0.7); border: 2px solid #555;
+      border-radius: 6px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+      transition: 0.1s; position: relative;
     }
-    .hotbar-slot.active {
-      border-color: #0f0; background: rgba(0,255,0,0.2); transform: scale(1.1);
-    }
+    .hotbar-slot.active { border-color: #0f0; background: rgba(0,255,0,0.3); transform: scale(1.1); z-index: 2; box-shadow: 0 0 10px #0f0; }
+    .hotbar-icon { font-size: 20px; line-height: 1; margin-top: -5px; }
+    .hotbar-label { font-size: 8px; color: #fff; font-weight: bold; position: absolute; bottom: 2px; text-shadow: 1px 1px 0 #000; }
   </style>
 </head>
 <body>
-  <div id="rankup-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:10000; justify-content:center; align-items:center; pointer-events:none;">
-    <div id="rankup-glow" style="position:absolute; width:200%; height:200%; opacity:0.5;"></div>
-    <div id="rankup-overlay-text" style="font-size:40px; font-weight:900; color:#fff; z-index:2;"></div>
-  </div>
-
   <div class="container">
     <div class="header">
-      <div class="top-nav">
-        <span onclick="document.getElementById('settings-modal').style.display='flex'">настройки</span>
-        <span onclick="open_quests()">квесты (дейлики)</span>
-        <span onclick="open_friends()">друзья / 1х1</span>
-      </div>
-      <div style="text-align:center; margin-bottom:5px;">
-        <span class="rank-badge" id="my-donate-badge" style="display:none;"></span>
-        <span id="donate-expire" style="color:#888; font-size:10px;"></span>
-      </div>
-      <div class="top-stats">
-        <div class="stat-box"><div class="stat-label">скрепки</div><div class="stat-value" id="skrepki-val">0</div></div>
-        <div class="stat-box"><div class="stat-label">прибыль в час</div><div class="stat-value" id="profit-val">+0</div></div>
-      </div>
-      <div class="league-info" id="rank-name">БРОНЗА I</div>
-      <div class="main-balance" id="vrgk-balance">0</div>
+      <div style="text-align:center; color:#0ff; font-weight:bold; padding:10px;">🛠️ SANDBOX: РЕДАКТОР 2D МИРА 🛠️</div>
     </div>
 
-    <div id="tab-mine" class="tab-content active">
-      <div class="tap-area" id="tap-area"><div class="vorg-coin" id="vorg-coin"></div></div>
-      <div class="energy-container">
-        <div class="energy-text"><span id="energy-current">1000</span> / <span id="energy-max">1000</span> энг</div>
-        <div class="energy-bar-bg"><div class="energy-bar-fill" id="energy-fill"></div></div>
-      </div>
-    </div>
-
-    <div id="tab-upgrades" class="tab-content">
-      <div class="upgrade-list">
-        <div class="section-title">особое</div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">цветной ник</span><span class="upgrade-desc">выделяйся в топе</span><span class="upgrade-price">цена: 5 000 000</span></div><button class="buy-btn gold" onclick="buy_color()">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">крафт скрепок</span><span class="upgrade-desc">курс: 1 к 900 000</span><span class="upgrade-price">цена: 900 000</span></div><button class="buy-btn blue" onclick="craft()">крафт</button></div>
-        <div class="section-title">бусты</div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">сила тапа</span><span class="upgrade-desc" id="multitap-lvl">ур 1</span><span class="upgrade-price" id="multitap-price">цена: 500</span></div><button class="buy-btn" onclick="buy_upg('tap')">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">макс энергия</span><span class="upgrade-desc" id="energy-lvl">ур 1</span><span class="upgrade-price" id="energy-price">цена: 1000</span></div><button class="buy-btn" onclick="buy_upg('eng')">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">реген энергии</span><span class="upgrade-desc" id="regen-lvl">+3 в сек</span><span class="upgrade-price" id="regen-price">цена: 5 000</span></div><button class="buy-btn" onclick="buy_upg('regen')">купить</button></div>
-        <div class="section-title">карточки (дешёвые)</div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">флуд в тг</span><span class="upgrade-desc" id="card1-desc">ур 0</span><span class="upgrade-price" id="card1-price">цена: 2000</span></div><button class="buy-btn" onclick="buy_card(1, 500)">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">энергетик</span><span class="upgrade-desc" id="card8-desc">ур 0</span><span class="upgrade-price" id="card8-price">цена: 15 000</span></div><button class="buy-btn" onclick="buy_card(8, 1200)">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">пиар от ворга</span><span class="upgrade-desc" id="card2-desc">ур 0</span><span class="upgrade-price" id="card2-price">цена: 10 000</span></div><button class="buy-btn" onclick="buy_card(2, 3000)">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">твич-стрим</span><span class="upgrade-desc" id="card9-desc">ур 0</span><span class="upgrade-price" id="card9-price">цена: 45 000</span></div><button class="buy-btn" onclick="buy_card(9, 3800)">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">свой клан</span><span class="upgrade-desc" id="card5-desc">ур 0</span><span class="upgrade-price" id="card5-price">цена: 20 000</span></div><button class="buy-btn" onclick="buy_card(5, 5000)">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">автокликер</span><span class="upgrade-desc" id="card10-desc">ур 0</span><span class="upgrade-price" id="card10-price">цена: 120 000</span></div><button class="buy-btn" onclick="buy_card(10, 9500)">купить</button></div>
-        <div class="section-title">карточки (средние и дорогие)</div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">свой дс сервер</span><span class="upgrade-desc" id="card3-desc">ур 0</span><span class="upgrade-price" id="card3-price">цена: 50 000</span></div><button class="buy-btn" onclick="buy_card(3, 15000)">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">доска позора</span><span class="upgrade-desc" id="card4-desc">ур 0</span><span class="upgrade-price" id="card4-price">цена: 100 000</span></div><button class="buy-btn" onclick="buy_card(4, 20000)">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">свой мерч</span><span class="upgrade-desc" id="card11-desc">ур 0</span><span class="upgrade-price" id="card11-price">цена: 350 000</span></div><button class="buy-btn" onclick="buy_card(11, 24000)">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">личный пони</span><span class="upgrade-desc" id="card7-desc">ур 0</span><span class="upgrade-price" id="card7-price">цена: 130 000</span></div><button class="buy-btn" onclick="buy_card(7, 25000)">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">админка</span><span class="upgrade-desc" id="card6-desc">ур 0</span><span class="upgrade-price" id="card6-price">цена: 200 000</span></div><button class="buy-btn" onclick="buy_card(6, 30000)">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">криптоферма</span><span class="upgrade-desc" id="card12-desc">ур 0</span><span class="upgrade-price" id="card12-price">цена: 850 000</span></div><button class="buy-btn" onclick="buy_card(12, 55000)">купить</button></div>
-        <div class="upgrade-item"><div class="upgrade-info"><span class="upgrade-name">коллаб со звездой</span><span class="upgrade-desc" id="card13-desc">ур 0</span><span class="upgrade-price" id="card13-price">цена: 2 200 000</span></div><button class="buy-btn" onclick="buy_card(13, 130000)">купить</button></div>
-      </div>
-    </div>
-
-    <div id="tab-donate" class="tab-content">
-      <div class="upgrade-list">
-        <div class="club-card" style="border-color:#a0f; background:#1a0a2a;">
-          <div class="club-name-big" style="color:#d4af37;">ДОНАТ-КЕЙС</div>
-          <div style="font-size:12px; color:#aaa; margin-top:5px;">Шанс выбить привилегию вплоть до Князя!</div>
-          <div style="font-size:14px; color:#fff; font-weight:bold; margin-top:10px;">Цена: 50 скрепок 📎</div>
-          <button class="buy-btn purple" style="width:100%; margin-top:15px; padding:12px;" onclick="open_case()">ОТКРЫТЬ КЕЙС</button>
-          <div id="case-roll-anim" class="case-animation">КРУТИМ РУЛЕТКУ...</div>
-        </div>
-      </div>
-    </div>
-
-    <div id="tab-inventory" class="tab-content">
-      <div class="upgrade-list">
-        <div class="section-title">МОИ ВЕЩИ И РЕСУРСЫ</div>
-        <div class="inv-grid" id="inv-container"></div>
-      </div>
-    </div>
-
-    <div id="tab-anarchy" class="tab-content">
+    <div id="tab-anarchy" class="tab-content active">
       <div class="upgrade-list" style="padding-top:5px;">
-        <div class="section-title">ПЕСОЧНИЦА (2D СБОКУ)</div>
-        <div class="map-wrapper" id="map-wrapper" style="position: relative; overflow: hidden; border: 2px solid #333; border-radius: 8px;">
-          <!-- ХОЛСТ -->
+        
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+          <div class="section-title" style="margin:0;">МИР И ФИЗИКА</div>
+          <button class="buy-btn gold" id="btn-edit-hud" onclick="toggle_hud_edit()" style="padding: 5px 10px; font-size: 10px;">РЕДАКТИРОВАТЬ HUD</button>
+        </div>
+
+        <div class="map-wrapper" id="map-wrapper">
           <canvas id="rtp-canvas"></canvas>
           
-          <div class="coord-overlay" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 5px; font-size: 12px; color: #fff; z-index: 10;">
-            X: <span id="map-x">0</span> Y: <span id="map-y">0</span>
+          <!-- ДРАГГАБЛ 1: Координаты -->
+          <div id="hud-coords" class="draggable-hud" style="top: 10px; left: 10px;">
+            <div style="background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 5px; font-size: 12px; color: #fff;">
+              X: <span id="map-x">0</span> Y: <span id="map-y">0</span> | <span id="time-display">☀️ День</span>
+            </div>
           </div>
 
-          <!-- ДЖОЙСТИК (Бег влево/вправо) -->
-          <div class="joystick-zone" id="joystick-zone"><div class="joystick-knob" id="joystick-knob"></div></div>
+          <!-- ДЖОЙСТИК (Не перетаскивается, он прибит слева внизу) -->
+          <div class="joystick-zone" id="joystick-zone" style="z-index: 25;"><div class="joystick-knob" id="joystick-knob"></div></div>
           
-          <!-- ХОТБАР ДЛЯ СТРОИТЕЛЬСТВА -->
-          <div id="build-hotbar" style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex; gap:8px; z-index:20;">
-            <div class="hotbar-slot" data-block="0" onclick="select_slot(0)">⛏️</div>
-            <div class="hotbar-slot active" data-block="1" onclick="select_slot(1)">🟫</div>
-            <div class="hotbar-slot" data-block="2" onclick="select_slot(2)">🪨</div>
-            <div class="hotbar-slot" data-block="3" onclick="select_slot(3)">⬛</div>
+          <!-- ДРАГГАБЛ 2: Хотбар строительства -->
+          <div id="hud-hotbar" class="draggable-hud" style="bottom: 15px; left: 50px;">
+            <div style="display:flex; gap:6px;">
+              <div class="hotbar-slot" data-block="0" onclick="select_slot(0)"><div class="hotbar-icon">⛏️</div><div class="hotbar-label">Кирка</div></div>
+              <div class="hotbar-slot active" data-block="1" onclick="select_slot(1)"><div class="hotbar-icon">🟫</div><div class="hotbar-label">Земля</div></div>
+              <div class="hotbar-slot" data-block="2" onclick="select_slot(2)"><div class="hotbar-icon">🪨</div><div class="hotbar-label">Камень</div></div>
+              <div class="hotbar-slot" data-block="3" onclick="select_slot(3)"><div class="hotbar-icon">⬛</div><div class="hotbar-label">Обса</div></div>
+            </div>
           </div>
 
-          <!-- КНОПКИ ДЕЙСТВИЙ СПРАВА -->
-          <div style="position:absolute; right:15px; bottom:20px; display:flex; flex-direction:column; gap:12px; z-index:20;">
-            <button class="buy-btn red" style="width:60px; height:60px; border-radius:50%; font-size:22px; padding:0; box-shadow: 0 0 10px rgba(255,0,0,0.5);" onclick="map_attack()" id="map-btn-attack">⚔️</button>
-            <button class="buy-btn blue" style="width:55px; height:55px; border-radius:50%; font-size:20px; padding:0; align-self:flex-end;" id="btn-jump">⬆️</button>
-            <button class="buy-btn purple" style="width:45px; height:45px; border-radius:50%; font-size:16px; padding:0; align-self:flex-end;" onclick="map_pearl()">🔮</button>
+          <!-- ДРАГГАБЛ 3: Кнопки действий -->
+          <div id="hud-actions" class="draggable-hud" style="bottom: 15px; right: 15px;">
+            <div style="display:flex; flex-direction:column; gap:12px; align-items:flex-end;">
+              <button class="buy-btn gold" style="width:40px; height:40px; border-radius:50%; font-size:16px; padding:0;">🍎</button>
+              <button class="buy-btn purple" style="width:50px; height:50px; border-radius:50%; font-size:18px; padding:0;">🔮</button>
+              <button class="buy-btn blue" style="width:65px; height:65px; border-radius:50%; font-size:24px; padding:0; box-shadow: 0 0 10px rgba(0,100,255,0.5);" id="btn-jump">⬆️</button>
+            </div>
           </div>
+
         </div>
 
         <div style="background:#111; padding:15px; border-radius:8px; border:1px solid #333; margin-top: 10px;">
-          <button class="buy-btn" id="btn-rtp" style="width:100%; margin-bottom:10px;" onclick="do_rtp()">СЛУЧАЙНЫЙ ТЕЛЕПОРТ</button>
-          <div style="text-align:center; color:#555; font-size:12px;">Синхронизация карты временно отключена для тестов физики 2D</div>
+          <div style="text-align:center; color:#aaa; font-size:12px;">
+            <b>ИНСТРУКЦИЯ:</b><br>
+            Джойстик — бег. Кнопка ⬆️ — прыжок.<br>
+            Нажми "РЕДАКТИРОВАТЬ HUD", чтобы двигать кнопки и блоки по экрану.<br>
+            Время суток меняется само. Анимации работают при беге.
+          </div>
         </div>
       </div>
     </div>
-
-    <!-- Заглушки для остальных вкладок, чтобы не мешали тестам -->
-    <div id="tab-auction" class="tab-content"><div class="upgrade-list"><div class="section-title">АУКЦИОН (/AH)</div></div></div>
-    <div id="tab-ranked" class="tab-content"><div class="upgrade-list"><div class="section-title">РАНКЕД</div></div></div>
-    <div id="tab-clubs" class="tab-content"><div class="upgrade-list" id="club-content"><div style="text-align:center; color:#888;">загрузка...</div></div></div>
-    <div id="tab-rating" class="tab-content"><div class="upgrade-list"><div id="leaderboard-content">загрузка...</div></div></div>
-
-    <div class="bottom-nav">
-      <div class="nav-item active" onclick="sw_tab('mine', this)">Тапать</div>
-      <div class="nav-item" onclick="sw_tab('upgrades', this)">Бусты</div>
-      <div class="nav-item" onclick="sw_tab('donate', this)">Донат</div>
-      <div class="nav-item" onclick="sw_tab('inventory', this)">Рюкзак</div>
-      <div class="nav-item" style="color:#f00;" onclick="sw_tab('anarchy', this)">Анархия</div>
-      <div class="nav-item" onclick="sw_tab('auction', this)">/ah</div>
-      <div class="nav-item" onclick="sw_tab('ranked', this)">Ранкед</div>
-      <div class="nav-item" onclick="sw_tab('clubs', this)">Клубы</div>
-      <div class="nav-item" onclick="sw_tab('rating', this)">Топ</div>
-    </div>
-
-    <div id="auth-modal" class="modal-overlay" style="z-index:9999; background:#000;">
-      <div class="modal-content" style="background:#111; border:1px solid #d4af37;">
-        <div class="modal-title">вход / регистрация</div>
-        <input type="text" id="auth-nick" placeholder="твой ник" maxlength="15">
-        <input type="password" id="auth-pin" placeholder="пин-код (4 цифры)" maxlength="4" pattern="\d*">
-        <button class="buy-btn gold" style="margin-top:10px; padding:12px;" onclick="auth_player()">войти</button>
-      </div>
-    </div>
-    
-    <div id="settings-modal" class="modal-overlay"><div class="modal-content"><button class="buy-btn" onclick="document.getElementById('settings-modal').style.display='none'">закрыть</button></div></div>
   </div>
 </body>
 </html>
