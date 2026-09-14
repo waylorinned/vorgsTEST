@@ -52,15 +52,18 @@
           <!-- ДЖОЙСТИК (Не перетаскивается, он прибит слева внизу) -->
           <div class="joystick-zone" id="joystick-zone" style="z-index: 25;"><div class="joystick-knob" id="joystick-knob"></div></div>
           
-          <!-- ДРАГГАБЛ 2: Хотбар строительства -->
-          <div id="hud-hotbar" class="draggable-hud" style="bottom: 15px; left: 50px;">
-            <div style="display:flex; gap:6px;">
-              <div class="hotbar-slot" data-block="0" onclick="select_slot(0)"><div class="hotbar-icon">⛏️</div><div class="hotbar-label">Кирка</div></div>
-              <div class="hotbar-slot active" data-block="1" onclick="select_slot(1)"><div class="hotbar-icon">🟫</div><div class="hotbar-label">Земля</div></div>
+                   <!-- ДРАГГАБЛ 2: Хотбар строительства -->
+          <div id="hud-hotbar" class="draggable-hud" style="bottom: 15px; left: 10px; max-width: 70vw; overflow-x: auto; border-radius: 8px;">
+            <div style="display:flex; gap:6px; padding-bottom: 5px;">
+              <div class="hotbar-slot active" data-block="0" onclick="select_slot(0)"><div class="hotbar-icon">⛏️</div><div class="hotbar-label">Кирка</div></div>
+              <div class="hotbar-slot" data-block="1" onclick="select_slot(1)"><div class="hotbar-icon">🟫</div><div class="hotbar-label">Земля</div></div>
               <div class="hotbar-slot" data-block="2" onclick="select_slot(2)"><div class="hotbar-icon">🪨</div><div class="hotbar-label">Камень</div></div>
+              <div class="hotbar-slot" data-block="8" onclick="select_slot(8)"><div class="hotbar-icon">🪵</div><div class="hotbar-label">Дерево</div></div>
               <div class="hotbar-slot" data-block="3" onclick="select_slot(3)"><div class="hotbar-icon">⬛</div><div class="hotbar-label">Обса</div></div>
+              <div class="hotbar-slot" data-block="9" onclick="select_slot(9)"><div class="hotbar-icon">🔮</div><div class="hotbar-label">Чары</div></div>
             </div>
           </div>
+
 
           <!-- ДРАГГАБЛ 3: Кнопки действий -->
           <div id="hud-actions" class="draggable-hud" style="bottom: 15px; right: 15px;">
