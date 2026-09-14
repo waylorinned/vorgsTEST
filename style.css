@@ -1,0 +1,89 @@
+* { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+html, body { height: 100%; margin: 0; padding: 0; background: #000; color: #fff; font-family: 'segoe ui', sans-serif; overflow: hidden; user-select: none; }
+.container { display: flex; flex-direction: column; height: 100%; max-width: 500px; margin: 0 auto; background: radial-gradient(circle at top, #2a220d 0%, #000000 80%); }
+.header { padding: 10px 15px; flex-shrink: 0; position: relative; }
+.top-nav { display: flex; justify-content: space-between; font-size: 11px; color: #aaa; text-decoration: underline; text-transform: lowercase; margin-bottom: 10px; }
+.top-nav span { cursor: pointer; }
+.top-stats { display: flex; justify-content: space-between; margin-bottom: 10px; gap: 10px; }
+.stat-box { flex: 1; background: rgba(30, 30, 30, 0.8); border: 1px solid #333; border-radius: 12px; padding: 10px; text-align: center; }
+.stat-label { font-size: 11px; color: #aaa; text-transform: lowercase; margin-bottom: 4px; }
+.stat-value { font-size: 16px; font-weight: 800; color: #d4af37; }
+.league-info { text-align: center; font-size: 16px; color: #d4af37; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
+.main-balance { text-align: center; font-size: 42px; font-weight: 900; margin: 5px 0 15px 0; }
+.tab-content { flex: 1; display: none; flex-direction: column; overflow-y: auto; padding-bottom: 20px; }
+.tab-content.active { display: flex; }
+.tap-area { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; flex-direction: column; }
+.vorg-coin { width: 70vw; max-width: 280px; height: 70vw; max-height: 280px; border-radius: 50%; background: url('vorg.jpg') center/cover no-repeat; background-color: #222; border: 8px solid #d4af37; box-shadow: 0 0 40px rgba(212, 175, 55, 0.15), inset 0 0 20px rgba(0,0,0,0.8); cursor: pointer; transition: transform 0.05s ease-out; position: relative; z-index: 10; }
+.vorg-coin:active { transform: scale(0.95); }
+.neon-pro { box-shadow: 0 0 10px #d4af37, 0 0 20px #0ff, inset 0 0 15px #0ff !important; border-color: #0ff !important; animation: proPulse 2s infinite alternate; }
+@keyframes proPulse { from { box-shadow: 0 0 5px #0ff, inset 0 0 5px #0ff; } to { box-shadow: 0 0 15px #0ff, 0 0 25px #0ff, inset 0 0 15px #0ff; } }
+.energy-container { padding: 0 20px 20px 20px; flex-shrink: 0; }
+.energy-text { display: flex; font-size: 14px; font-weight: bold; margin-bottom: 8px; color: #ccc; }
+.energy-bar-bg { width: 100%; height: 10px; background: #222; border-radius: 5px; overflow: hidden; }
+.energy-bar-fill { height: 100%; background: #d4af37; width: 100%; transition: width 0.1s; }
+.upgrade-list { padding: 15px; display: flex; flex-direction: column; gap: 12px; }
+.section-title { margin: 5px 0; color: #d4af37; font-size: 16px; text-transform: lowercase; font-weight: bold; }
+.upgrade-item { background: #111; border: 1px solid #222; border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+.upgrade-info { display: flex; flex-direction: column; gap: 4px; }
+.upgrade-name { font-size: 15px; font-weight: bold; color: #eee; text-transform: lowercase; }
+.upgrade-desc { font-size: 12px; color: #777; text-transform: lowercase; }
+.upgrade-price { font-size: 13px; color: #d4af37; font-weight: bold; }
+.buy-btn { background: #333; color: #fff; border: 1px solid #555; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: lowercase; text-align: center; }
+.buy-btn:active { background: #555; }
+.buy-btn.gold { background: #d4af37; color: #000; border: none; }
+.buy-btn.blue { background: #2a52be; color: #fff; border: none; }
+.buy-btn.red { background: #800; color: #fff; border: 1px solid #f00; }
+.buy-btn.green { background: #080; color: #fff; border: 1px solid #0f0; }
+.buy-btn.purple { background: #60c; color: #fff; border: 1px solid #a0f; box-shadow: 0 0 10px rgba(170,0,255,0.5); }
+.floating-text { position: absolute; font-size: 32px; font-weight: 900; color: #fff; pointer-events: none; animation: floatUp 0.8s ease-out forwards; z-index: 20; }
+@keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-120px) scale(1.2); } }
+.bottom-nav { background: #0a0a0a; display: flex; padding: 10px 2px calc(15px + env(safe-area-inset-bottom)) 2px; border-top: 1px solid #222; flex-shrink: 0; justify-content: flex-start; overflow-x: auto; gap: 5px; scrollbar-width: none; }
+.bottom-nav::-webkit-scrollbar { display: none; }
+.nav-item { flex: 0 0 auto; min-width: 70px; text-align: center; color: #555; font-size: 11px; font-weight: bold; padding: 12px 5px; cursor: pointer; text-transform: lowercase; }
+.nav-item.active { color: #d4af37; background: #1a1508; border-radius: 8px; }
+.modal-overlay { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; }
+.modal-content { background: #1a1508; border: 1px solid #333; border-radius: 15px; padding: 20px; text-align: center; width: 85%; max-width: 350px; display: flex; flex-direction: column; gap: 10px; max-height: 90vh; overflow-y: auto; }
+.modal-title { font-size: 18px; color: #d4af37; margin-bottom: 5px; text-transform: lowercase; font-weight: bold; }
+input, select, textarea { width: 100%; background: #0a0a0a; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 8px; font-family: 'segoe ui', sans-serif; font-size: 14px; margin-bottom: 5px; }
+.rank-pos { font-size: 18px; font-weight: 900; color: #555; width: 25px; text-align: center; }
+.rank-pos.gold-pos { color: #d4af37; } .rank-pos.silver-pos { color: #aaa; } .rank-pos.bronze-pos { color: #cd7f32; }
+.club-card { background: #111; border: 2px solid #d4af37; border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: center; position: relative; cursor: pointer; }
+.club-name-big { font-size: 24px; font-weight: 900; color: #fff; }
+.club-desc-box { font-size: 12px; color: #aaa; background: #000; padding: 10px; border-radius: 8px; margin-bottom: 15px; word-wrap: break-word; }
+.member-list-item { background: #111; border: 1px solid #333; padding: 10px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; cursor: pointer; }
+.arena-container { width: 100%; height: 350px; background: #050505; border: 2px solid #444; border-radius: 15px; position: relative; margin-top: 15px; overflow: hidden; }
+.arena-hud { display: flex; justify-content: space-between; padding: 10px; background: #111; border-bottom: 1px solid #333; z-index: 5; position: relative; }
+.arena-score { font-size: 16px; font-weight: bold; color: #fff; }
+.arena-vs { font-size: 14px; color: #d4af37; font-weight: bold; }
+.arena-target-1 { position: absolute; width: 80px; height: 80px; background: radial-gradient(circle, #f00, #800); border-radius: 50%; border: 3px solid #fff; cursor: pointer; transform: translate(-50%, -50%); transition: all 0.1s; }
+.arena-target-2 { position: absolute; width: 65px; height: 65px; background: radial-gradient(circle, #0f0, #080); border-radius: 50%; border: 2px solid #fff; cursor: pointer; transform: translate(-50%, -50%); color: #000; font-weight: bold; line-height: 61px; font-size: 28px; text-align: center; }
+.minefield-green { position: absolute; width: 65px; height: 65px; background: radial-gradient(circle, #0f0, #0a0); border-radius: 50%; border: 2px solid #fff; cursor: pointer; transform: translate(-50%, -50%); z-index: 2; }
+.minefield-red { position: absolute; width: 65px; height: 65px; background: radial-gradient(circle, #f00, #a00); border-radius: 50%; border: 2px solid #fff; cursor: pointer; transform: translate(-50%, -50%); z-index: 1; }
+.tug-container { width: 90%; height: 30px; background: #800; border: 2px solid #fff; border-radius: 15px; margin: 0 auto; overflow: hidden; position: relative; margin-top: 20px; }
+.tug-fill { height: 100%; background: #080; width: 50%; transition: width 0.1s linear; }
+.tug-marker { position: absolute; width: 4px; height: 30px; background: #fff; left: 50%; top: 0; transform: translateX(-50%); }
+.pvp-hp-bar { width: 100%; height: 15px; background: #333; border-radius: 8px; overflow: hidden; border: 1px solid #000; }
+.pvp-hp-fill { height: 100%; background: #0f0; width: 100%; transition: width 0.2s; }
+.log-box { background: #000; border: 1px solid #333; height: 80px; overflow-y: auto; font-size: 11px; padding: 5px; text-align: left; color: #aaa; border-radius: 5px; margin-bottom: 10px; }
+.map-wrapper { position: relative; width: 100%; height: 350px; background: #111; border: 2px solid #333; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+#rtp-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.joystick-zone { position: absolute; bottom: 15px; left: 15px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%; touch-action: none; z-index: 10; border: 1px solid rgba(255,255,255,0.3); }
+.joystick-knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: rgba(212, 175, 55, 0.7); border-radius: 50%; pointer-events: none; transition: transform 0.05s; }
+.action-btn-map { position: absolute; bottom: 15px; right: 15px; width: 60px; height: 60px; background: rgba(255,0,0,0.5); border-radius: 50%; border: 2px solid #f00; color: #fff; font-weight: bold; display: flex; justify-content: center; align-items: center; z-index: 10; cursor: pointer; user-select: none; }
+.action-btn-map:active { background: rgba(255,0,0,0.8); }
+.coord-overlay { position: absolute; top: 10px; left: 10px; font-size: 12px; font-family: monospace; color: #0f0; text-shadow: 1px 1px 0 #000; z-index: 10; pointer-events: none; }
+.craft-overlay-btn { position: absolute; top: 10px; right: 10px; z-index: 10; padding: 8px 12px; font-size: 12px; }
+.gank-alert { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.3); animation: flashRed 1s infinite; z-index: 5; pointer-events: none; display: none; }
+@keyframes flashRed { 0% { opacity: 0.1; } 50% { opacity: 0.5; } 100% { opacity: 0.1; } }
+#rankup-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+.rankup-glow { width: 300px; height: 300px; background: radial-gradient(circle, rgba(212,175,55,0.4) 0%, rgba(0,0,0,0) 70%); position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); animation: pulseGlow 2s infinite; }
+.rankup-text { font-size: 48px; font-weight: 900; color: #fff; text-shadow: 0 0 20px #d4af37, 0 0 40px #d4af37; z-index: 10; margin-bottom: 30px; animation: zoomIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-transform: uppercase; }
+.rankup-sub { font-size: 16px; color: #aaa; z-index: 10; margin-bottom: 40px; animation: zoomIn 0.8s ease; }
+.ban-btn { background: #222; border: 1px solid #555; padding: 10px; border-radius: 8px; color: #fff; font-weight: bold; width: 100%; margin-bottom: 5px; cursor: pointer; }
+.case-animation { font-size: 24px; font-weight: bold; margin: 20px 0; color: #fff; animation: pulse 0.5s infinite alternate; display: none; }
+.inv-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+.inv-slot { background: #111; border: 1px solid #333; border-radius: 8px; padding: 10px 5px; text-align: center; position: relative; cursor: pointer; }
+.inv-icon { font-size: 24px; margin-bottom: 5px; }
+.inv-count { position: absolute; bottom: 2px; right: 4px; font-size: 11px; font-weight: bold; color: #fff; }
+.rank-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; vertical-align: middle; margin-right: 5px; text-transform: uppercase; }
+.neon-gertsog { text-shadow: 0 0 5px #f00, 0 0 10px #ff0, 0 0 15px #0f0, 0 0 20px #0ff; animation: rainbow 2s linear infinite; }
